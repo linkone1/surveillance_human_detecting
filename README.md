@@ -9,7 +9,7 @@
 
 This project leverages the power of **TensorFlow.js** to detect humanoid figures in real-time using pre-trained machine learning models. By integrating pose detection with a lightweight surveillance system, it overlays a skeletal "mesh" on detected individuals and sends automated email alerts via **EmailJS** when a person is spotted. Whether you're monitoring your room or experimenting with computer vision, this tool combines accessibility with functionality.
 
-The skeleton mesh is drawn using keypoint connections (defined in lines 250–261 of the code), visualizing body parts like shoulders, elbows, and knees. When a human is detected, an email notification is dispatched to your chosen address using a customizable EmailJS template.
+The skeleton mesh is drawn using keypoint connections (defined in lines 224–284 of the code), visualizing body parts like shoulders, elbows, and knees. When a human is detected, an email notification is dispatched to your chosen address using a customizable EmailJS template.
 
 ---
 
