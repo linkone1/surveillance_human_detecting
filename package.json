@@ -1,16 +1,20 @@
 {
   "name": "seccam",
   "version": "1.0.0",
+  "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^5.1.0",
+    "fluent-ffmpeg": "^2.1.3",
     "node-fetch": "^3.3.2",
     "nodemailer": "^6.10.0",
     "textbelt": "^0.0.4"

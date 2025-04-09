@@ -1,4 +1,7 @@
-emailjs.init("[REDACTED]")
+let mediaRecorder;
+let recordedChunks = [];
+let isRecording = false;
+const recordingDuration = 10000; // 10 seconds
 
 let detector;
 let model = "movenet";
@@ -8,71 +11,47 @@ let ctx;
 let isRunning = false;
 let rafId;
 
-let lastSMSTime = 0;
-const smsCooldown = 60000;
-let isEmailSending = false;
-
 const statusDiv = document.getElementById('status');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 const modelSelect = document.getElementById('modelSelect');
 
-
 init();
 
-// Function to declare variables, initialize the canvas and video also add event listeners to the buttons.
 async function init() {
     statusDiv.textContent = 'Loading TensorFlow.js...';
-
     await tf.ready();
-
 
     canvas = document.getElementById('canvas');
     ctx = canvas.getContext('2d');
-
     video = document.getElementById('video');
 
-    // Setup event listeners
     startBtn.addEventListener('click', startCamera);
     stopBtn.addEventListener('click', stopCamera);
     modelSelect.addEventListener('change', changeModel);
 
-    // Load the initial model
     await loadModel();
-
     statusDiv.textContent = 'Model loaded. Click "Start Camera" to begin.';
 }
 
 function makeSurePersonIsInFrame(poses) {
-    if (!poses || poses.length == 0) {
+    if (!poses || poses.length === 0) {
         statusDiv.textContent = 'No person detected in the frame.';
         return false;
     }
     return true;
 }
 
-
-
-// Loading modules function and initializintg the model into the config.
 async function loadModel() {
-    if (detector) {
-        detector.dispose();
-    }
-
+    if (detector) detector.dispose();
     statusDiv.textContent = `Loading ${model} model...`;
 
     try {
         let modelConfig;
-
         if (model === 'movenet') {
-            modelConfig = {
-                modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING
-            };
+            modelConfig = { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING };
         } else if (model === 'blazepose') {
-            modelConfig = {
-                runtime: 'tfjs',
-                modelType: 'full'
-            };
+            modelConfig = { runtime: 'tfjs', modelType: 'full' };
         } else if (model === 'posenet') {
             modelConfig = {
                 architecture: 'MobileNetV1',
@@ -83,14 +62,11 @@ async function loadModel() {
         }
 
         detector = await poseDetection.createDetector(
-            model === 'movenet'
-                ? poseDetection.SupportedModels.MoveNet
-                : model === 'blazepose'
-                    ? poseDetection.SupportedModels.BlazePose
-                    : poseDetection.SupportedModels.PoseNet,
+            model === 'movenet' ? poseDetection.SupportedModels.MoveNet :
+            model === 'blazepose' ? poseDetection.SupportedModels.BlazePose :
+            poseDetection.SupportedModels.PoseNet,
             modelConfig
         );
-
         statusDiv.textContent = `${model} model loaded!`;
     } catch (error) {
         statusDiv.textContent = `Error loading model: ${error.message}`;
@@ -98,19 +74,17 @@ async function loadModel() {
     }
 }
 
-
-// Function to start the camera and display it in 640x480 resolution.
 async function startCamera() {
     try {
-        const constraints = {
-            video: {
-                width: 640,
-                height: 480
-            }
-        };
-
+        const constraints = { video: { width: 640, height: 480 } };
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = stream;
+
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) recordedChunks.push(event.data);
+        };
+        mediaRecorder.onstop = sendVideoEmail;
 
         video.onloadedmetadata = () => {
             video.play();
@@ -128,24 +102,60 @@ async function startCamera() {
     }
 }
 
+async function sendVideoEmail() {
+    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+    const filename = `intruder_${new Date().toISOString()}.webm`;
+
+    const reader = new FileReader();
+    reader.readAsDataURL(blob);
+    reader.onloadend = async () => {
+        const base64Video = reader.result.split(',')[1]; // Remove prefix
+
+        try {
+            statusDiv.textContent = 'Sending email via SMTP...';
+            const response = await fetch('/send-email', { // Relative URL
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    videoBase64: base64Video,
+                    filename: filename
+                })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Server responded with ${response.status}: ${errorText}`);
+            }
+
+            console.log('Email with video sent successfully');
+            statusDiv.textContent = 'Intruder detected! Email with video sent.';
+        } catch (error) {
+            console.error('Error sending email:', error);
+            statusDiv.textContent = `Error sending email: ${error.message}`;
+        } finally {
+            recordedChunks = [];
+            isRecording = false;
+        }
+    };
+}
+
 function stopCamera() {
     if (video.srcObject) {
         video.srcObject.getTracks().forEach(track => track.stop());
         video.srcObject = null;
     }
-
     if (rafId) {
         cancelAnimationFrame(rafId);
         rafId = null;
     }
-
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+    }
     startBtn.disabled = false;
     stopBtn.disabled = true;
     modelSelect.disabled = false;
     isRunning = false;
     statusDiv.textContent = 'Camera stopped.';
-
-    // Clear the canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
@@ -171,41 +181,21 @@ async function detectPose() {
             const poses = await detector.estimatePoses(video);
             if (makeSurePersonIsInFrame(poses)) {
                 drawPoses(poses);
-                statusDiv.textContent = `Detecting poses using ${model}...`;
+                statusDiv.textContent = `Intruder detected using ${model}...`;
 
-                const currentTime = Date.now();
-                if (currentTime - lastSMSTime >= smsCooldown && !isEmailSending) {
-                    isEmailSending = true;
+                if (!isRecording && mediaRecorder && mediaRecorder.state === 'inactive') {
+                    console.log('Starting 10-second recording...');
+                    isRecording = true;
+                    recordedChunks = [];
+                    mediaRecorder.start();
+                    statusDiv.textContent = 'Intruder detected! Recording video...';
 
-                    const data = {
-                        service_id: '[REDACTED]',
-                        template_id: '[REDACTED]',
-                        user_id: '[REDACTED]',
-                        template_params: {
-                            to: "[REDACTED]",
-                            subject: "Intruder Alert!",
-                            message: "<b>INTRUDER ALERT!</b> SOMEONE IS IN YOUR ROOM!"
+                    setTimeout(() => {
+                        if (mediaRecorder.state === 'recording') {
+                            mediaRecorder.stop();
+                            statusDiv.textContent = 'Recording complete. Sending video...';
                         }
-                    };
-
-                    $.ajax('https://api.emailjs.com/api/v1.0/email/send', {
-                        type: 'POST',
-                        data: JSON.stringify(data),
-                        contentType: 'application/json'
-                    })
-                    .done(function(response) {
-                        console.log('Email sent successfully:', response);
-                        statusDiv.textContent = 'Intruder detected! Email sent.';
-                        lastSMSTime = currentTime;
-                    })
-                    .fail(function(jqXHR, textStatus, errorThrown) {
-                        const errorMessage = jqXHR.responseText || textStatus || errorThrown;
-                        console.error('Error sending email:', jqXHR, textStatus, errorThrown);
-                        statusDiv.textContent = `Error sending email: ${errorMessage}`;
-                    })
-                    .always(function() {
-                        isEmailSending = false;
-                    });
+                    }, recordingDuration);
                 }
             } else {
                 statusDiv.textContent = 'No person detected in the frame.';
@@ -219,34 +209,23 @@ async function detectPose() {
     rafId = requestAnimationFrame(detectPose);
 }
 
-
-
 function drawPoses(poses) {
-    // For each detected pose
     for (const pose of poses) {
-        // Draw keypoints
         for (const keypoint of pose.keypoints) {
             if (keypoint.score > 0.3) {
                 ctx.beginPath();
                 ctx.arc(keypoint.x, keypoint.y, 5, 0, 2 * Math.PI);
                 ctx.fillStyle = 'red';
                 ctx.fill();
-
-                // Optionally draw keypoint name
                 ctx.fillStyle = 'white';
                 ctx.fillText(keypoint.name, keypoint.x + 10, keypoint.y + 5);
             }
         }
-
-        // Draw skeleton (if available)
-        if (pose.keypoints.length > 5) { // Basic check to ensure we have enough keypoints
-            drawSkeleton(pose);
-        }
+        if (pose.keypoints.length > 5) drawSkeleton(pose);
     }
 }
 
 function drawSkeleton(pose) {
-    // Define connections for a human skeleton
     const connections = [
         ['nose', 'left_eye'], ['nose', 'right_eye'],
         ['left_eye', 'left_ear'], ['right_eye', 'right_ear'],
@@ -260,20 +239,15 @@ function drawSkeleton(pose) {
         ['left_knee', 'left_ankle'], ['right_knee', 'right_ankle']
     ];
 
-    // Create a map for fast keypoint lookup
     const keypointMap = {};
-    pose.keypoints.forEach(keypoint => {
-        keypointMap[keypoint.name] = keypoint;
-    });
+    pose.keypoints.forEach(keypoint => keypointMap[keypoint.name] = keypoint);
 
-    // Draw connections
     ctx.strokeStyle = 'green';
     ctx.lineWidth = 4;
 
     for (const [p1Name, p2Name] of connections) {
         const p1 = keypointMap[p1Name];
         const p2 = keypointMap[p2Name];
-
         if (p1 && p2 && p1.score > 0.3 && p2.score > 0.3) {
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
