@@ -1,6 +1,6 @@
 # Surveillance Camera with Pose Detection
 
-![Project Logo](https://via.placeholder.com/150.png?text=Surveillance+Cam)  
+![Project Logo](https://miro.medium.com/v2/resize:fit:640/format:webp/1*zlqbgFqsE97S-_BmsykLDA.jpeg)  
 **A cutting-edge surveillance system powered by TensorFlow.js and EmailJS**
 
 ---
@@ -44,10 +44,25 @@ The skeleton mesh is drawn using keypoint connections (defined in lines 250–26
 
 Follow these steps to get the surveillance camera up and running:
 
-### 1. Clone the Repository
 ```bash
+# 1. Clone the Repository
 git clone https://github.com/yourusername/your-repo-name.git
-cd your-repo-name```
-### 2. Install Dependencies
-```bash
-npm install ```
+cd your-repo-name
+# 2. Install Dependencies
+npm install
+# 3. Install ngrok
+npm install -g ngrok
+or
+choco install ngrok
+# 4 Configure EmailJS
+emailjs.init("PUB_KEY")
+service_id: "SERVICE_ID"
+template_id: "TEMPLATE_ID"
+user_id: "USER_ID"
+to: "YOUR_EMAIL_ADDRESS"
+
+#5 Start the Ngrok server
+ngrok http <available_port>
+
+#6 Navigate to templates/index.html
+Open it and now it should be running
