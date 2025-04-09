@@ -84,21 +84,7 @@ ngrok http 3000 (will run the ngrok server on port 3000 aswell)
    - Send an email alert with the video attachment
 4. Click "Stoppa Inspelning" to stop the camera
 
-## Security Features
-
-- Real-time pose detection for accurate intruder identification
-- Automatic video recording of security events
-- Instant email notifications with video evidence
-- SSL/TLS encrypted email delivery
-- Video conversion to ensure compatibility across devices
-
-## License
-
-This project is licensed under the ISC License - see the LICENSE file for details.
-
-## Author
-
-Linkan333
+# And get the Intruder on camera
 
 ## Acknowledgments
 
