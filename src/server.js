@@ -20,7 +20,7 @@ app.use(express.static(rootDir));
 
 // SMTP Configuration
 const transporter = nodemailer.createTransport({
-    host: 'send.one.com',
+    host: '[REDACTED]',
     port: 465,
     secure: true,
     auth: {
