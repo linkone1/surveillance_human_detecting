@@ -63,8 +63,12 @@ const transporter = nodemailer.createTransport({
 
 4. Start the server:
 ```bash
-#1 npm start (will run the server.js on port 3000)
-#2 ngrok http 3000 (will run the ngrok server on port 3000 aswell)
+#1
+npm start (will run the server.js on port 3000)
+
+#2
+ngrok http 3000 (will run the ngrok server on port 3000 aswell)
+
 #Explanation it will merge conflicts if you don't run both on the same port it could be any port but just the same ones to get the emailing working. If you do not want email-sending you could just run ngrok http 3000
 ```
 
