@@ -12,7 +12,6 @@ A real-time security camera system that uses TensorFlow.js for pose detection an
 - Instant email alerts with video attachment
 - Live visualization of detected poses and skeletal structure
 - Support for MP4 video conversion for maximum compatibility
-- Secure SMTP email delivery through One.com
 
 ## Tech Stack
 
